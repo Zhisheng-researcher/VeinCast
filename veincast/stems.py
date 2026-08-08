@@ -6,8 +6,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from layers import FieldMetadataEmbedding
-from variables import VariableRegistry
+from .layers import FieldMetadataEmbedding
+from .variables import VariableRegistry
 
 
 class LightweightRefinementBlock(nn.Module):

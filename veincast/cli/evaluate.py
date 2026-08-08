@@ -11,11 +11,11 @@ from typing import Dict, Iterable, List, Optional, Sequence
 import torch
 from torch.utils.data import DataLoader
 
-from config import resolve_config_paths, resolve_path
-from data import FieldNormalizer, VeinCastERA5Dataset
-from metrics import FieldMetricAccumulator
-from veincast import VeinCast
-from variables import VariableRegistry
+from ..config import resolve_config_paths, resolve_path
+from ..data import FieldNormalizer, VeinCastERA5Dataset
+from ..metrics import FieldMetricAccumulator
+from ..model import VeinCast
+from ..variables import VariableRegistry
 
 
 def _resolve_amp_dtype(device: torch.device, amp_dtype: str | None = None) -> torch.dtype:

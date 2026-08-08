@@ -62,7 +62,7 @@ The default implementation operates on a `121 x 240` latitude-longitude grid:
 | Training rollout | 1, 2, and 4 steps |
 
 For an exact paper-to-code mapping, see
-[PAPER_ALIGNMENT.md](PAPER_ALIGNMENT.md).
+[docs/PAPER_ALIGNMENT.md](docs/PAPER_ALIGNMENT.md).
 
 ## Forecast fields
 
@@ -86,8 +86,12 @@ cd VeinCast
 python -m venv .venv
 source .venv/bin/activate
 python -m pip install --upgrade pip
-python -m pip install -r requirements.txt
+python -m pip install -e .
 ```
+
+The editable installation exposes three commands: `veincast-train`,
+`veincast-evaluate`, and `veincast-predict`. The same entry points can also be
+run as Python modules under `veincast.cli`.
 
 ## Data preparation
 
@@ -120,13 +124,13 @@ scheduler, and gradient scaler.
 ### Stage 1: one-step transition
 
 ```bash
-python train.py --config configs/veincast_stage1.json
+veincast-train --config configs/veincast_stage1.json
 ```
 
 ### Stage 2: two-step rollout
 
 ```bash
-python train.py \
+veincast-train \
   --config configs/veincast_stage2_rollout2.json \
   --init-from artifacts/veincast_stage1/best.pt
 ```
@@ -134,7 +138,7 @@ python train.py \
 ### Stage 3: four-step rollout
 
 ```bash
-python train.py \
+veincast-train \
   --config configs/veincast_stage3_rollout4.json \
   --init-from artifacts/veincast_stage2_rollout2/best.pt
 ```
@@ -143,7 +147,7 @@ For distributed training, launch the same entry point with `torchrun`; the
 configured batch size is per process. For example:
 
 ```bash
-torchrun --standalone --nproc_per_node=8 train.py \
+torchrun --standalone --nproc_per_node=8 -m veincast.cli.train \
   --config configs/veincast_stage1.json
 ```
 
@@ -158,7 +162,7 @@ Evaluate recursive forecasts through 14 days and retain the standard reporting
 lead times:
 
 ```bash
-python evaluate.py \
+veincast-evaluate \
   --checkpoint artifacts/veincast_stage3_rollout4/best.pt \
   --max-lead-hours 336 \
   --report-leads 24,72,120,168,240,336
@@ -172,7 +176,7 @@ Results are written to `artifacts/veincast_evaluation/metrics.json` and
 Create a recursive 24-hour forecast for one sample:
 
 ```bash
-python predict.py \
+veincast-predict \
   --checkpoint artifacts/veincast_stage3_rollout4/best.pt \
   --lead-hours 24 \
   --sample-index 0
@@ -191,26 +195,32 @@ The generated NPZ archive contains:
 ```text
 VeinCast/
 |-- assets/                  # Figures used by this README
-|-- configs/                 # Three-stage training configurations
-|-- data.py                  # ERA5 loading, masking, and normalization
-|-- dynamic_graph.py         # Physics-guided dynamic field graph
-|-- fusion.py                # Graph-conditioned latent fusion
-|-- layers.py                # Earth-aware attention and decoder layers
-|-- losses.py                # Latitude-weighted Huber objective
-|-- metrics.py               # RMSE and weighted ACC
-|-- veincast.py              # Main VeinCast model
-|-- train.py                 # Distributed staged training
-|-- evaluate.py              # Recursive benchmark evaluation
-|-- predict.py               # Closed-set 69-field inference
-`-- PAPER_ALIGNMENT.md       # Paper-to-code correspondence
+|-- configs/                 # Three-stage experiment configurations
+|-- docs/                    # Paper-to-code documentation
+|-- veincast/                # Installable Python package
+|   |-- cli/                 # Train, evaluate, and predict entry points
+|   |-- model.py             # Main VeinCast architecture
+|   |-- data.py              # ERA5 loading, masking, and normalization
+|   |-- dynamic_graph.py     # Physics-guided dynamic field graph
+|   |-- fusion.py            # Graph-conditioned latent fusion
+|   |-- layers.py            # Earth-aware attention and decoder layers
+|   |-- losses.py            # Latitude-weighted Huber objective
+|   |-- metrics.py           # RMSE and weighted ACC
+|   `-- variables.py         # Canonical 69-field registry
+|-- pyproject.toml           # Package metadata and command registration
+`-- requirements.txt        # Runtime dependency list
 ```
 
 ## Checkpoint compatibility
 
-New code should import `VeinCast` from `veincast.py`. The lightweight
-`model.py` wrapper and selected class aliases preserve early development import
-paths. Internal module attribute names are unchanged, so existing VeinCast state
-dictionaries remain loadable.
+Import the model and registry from the package root:
+
+```python
+from veincast import VeinCast, VariableRegistry
+```
+
+The reorganization changes Python import paths only. Internal module attribute
+names are unchanged, so existing VeinCast state dictionaries remain loadable.
 
 ## Citation
 

@@ -3,6 +3,9 @@ __pycache__/
 .DS_Store
 .venv/
 tmp/
+build/
+dist/
+*.egg-info/
 artifacts/
 *.nc
 *.pt

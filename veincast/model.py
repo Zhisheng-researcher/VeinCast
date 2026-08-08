@@ -8,15 +8,15 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from dynamic_graph import DynamicGraphState, PhysicsGuidedDynamicFieldGraph
-from fusion import (
+from .dynamic_graph import DynamicGraphState, PhysicsGuidedDynamicFieldGraph
+from .fusion import (
     GraphConditionedFieldToLatentAttention,
     FusionLatentInitializer,
     FusionQueryReader,
     FusionToFieldFeedback,
     LatentUFusionBackbone,
 )
-from layers import (
+from .layers import (
     ContinuousFourierEmbedding,
     EarthWindowBlock,
     FieldMetadataEmbedding,
@@ -27,8 +27,8 @@ from layers import (
     StaticPatchEmbedding,
     VariableCrossAttention,
 )
-from stems import DualModalityStem
-from variables import VariableRegistry, build_query_prior
+from .stems import DualModalityStem
+from .variables import VariableRegistry, build_query_prior
 
 
 class VeinCast(nn.Module):

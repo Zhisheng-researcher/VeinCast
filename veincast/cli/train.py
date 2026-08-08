@@ -26,12 +26,12 @@ try:
 except ImportError:  # pragma: no cover - tqdm is optional at runtime
     tqdm = None
 
-from config import load_config, resolve_config_paths, save_config
-from data import FieldNormalizer, VeinCastERA5Dataset
-from losses import VeinCastForecastLoss
-from metrics import MetricAccumulator
-from veincast import VeinCast
-from variables import VariableRegistry
+from ..config import load_config, resolve_config_paths, save_config
+from ..data import FieldNormalizer, VeinCastERA5Dataset
+from ..losses import VeinCastForecastLoss
+from ..metrics import MetricAccumulator
+from ..model import VeinCast
+from ..variables import VariableRegistry
 
 
 warnings.filterwarnings(

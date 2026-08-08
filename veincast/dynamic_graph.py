@@ -6,8 +6,8 @@ from typing import Dict, Optional, Tuple
 import torch
 import torch.nn as nn
 
-from layers import pad_to_window, window_partition, window_reverse
-from variables import RELATION_GENERIC, RELATION_NAMES
+from .layers import pad_to_window, window_partition, window_reverse
+from .variables import RELATION_GENERIC, RELATION_NAMES
 
 
 @dataclass

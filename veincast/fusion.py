@@ -6,8 +6,8 @@ from typing import Optional, Tuple
 import torch
 import torch.nn as nn
 
-from dynamic_graph import DynamicGraphState
-from layers import (
+from .dynamic_graph import DynamicGraphState
+from .layers import (
     ContinuousFourierEmbedding,
     DropPath,
     MLP,

@@ -16,7 +16,7 @@ except ImportError as exc:  # pragma: no cover - model-only environments need no
 else:
     _XARRAY_IMPORT_ERROR = None
 
-from variables import FieldDefinition, VariableRegistry
+from .variables import FieldDefinition, VariableRegistry
 
 
 LATITUDE_NAMES = ("latitude", "lat")

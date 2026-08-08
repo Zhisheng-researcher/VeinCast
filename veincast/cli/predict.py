@@ -6,10 +6,10 @@ from pathlib import Path
 import numpy as np
 import torch
 
-from config import resolve_config_paths, resolve_path
-from data import FieldNormalizer, VeinCastERA5Dataset
-from variables import VariableRegistry
-from veincast import VeinCast
+from ..config import resolve_config_paths, resolve_path
+from ..data import FieldNormalizer, VeinCastERA5Dataset
+from ..model import VeinCast
+from ..variables import VariableRegistry
 
 
 def _normalizer_from_checkpoint(checkpoint: dict) -> FieldNormalizer:
