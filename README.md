@@ -1,46 +1,129 @@
+<div align="center">
+
 # VeinCast
 
-This repository contains the paper-aligned implementation of **VeinCast**, a
-closed-set global medium-range weather forecaster. Each application predicts
-the same registered 69 ERA5 fields on a `121 × 240` grid with a shared 6-hour
-transition operator.
+### Physics-Guided Dynamic Field Graphs with Graph-Conditioned Fusion for Global Medium-Range Weather Forecasting
 
-## Method components
+[![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/)
+[![PyTorch](https://img.shields.io/badge/PyTorch-2.1%2B-EE4C2C?logo=pytorch&logoColor=white)](https://pytorch.org/)
+[![Status](https://img.shields.io/badge/status-research%20code-7A4CC2)](#)
 
-- `PhysicsGuidedDynamicFieldGraph` builds the field graph from physical
-  relations and Top-K state-dependent residual edges.
-- `GraphConditionedFieldToLatentAttention` and `LatentUFusionBackbone` implement
-  graph-conditioned latent fusion with four 384-dimensional latent slots.
-- The relation-aware decoder reconstructs the fixed 69-field forecast and
-  applies the normalized-space residual update described in the appendix.
-- `VeinCastForecastLoss` is the masked latitude-weighted Huber objective with
-  threshold `2`. No reconstruction or equation-based physical regularizer is
-  included in the reported objective.
+VeinCast is a closed-set global weather forecaster that explicitly models
+state-dependent interactions among meteorological fields. A shared 6-hour
+transition operator predicts the complete registered 69-field atmosphere and
+is applied autoregressively for medium-range forecasts.
 
-See `PAPER_ALIGNMENT.md` for the exact paper-to-code correspondence.
+</div>
+
+<p align="center">
+  <img src="assets/forecasting_paradigms.jpg" width="650" alt="Comparison of traditional NWP, existing AI weather models, and VeinCast">
+</p>
+
+<p align="center"><em>VeinCast introduces a physics-guided dynamic field graph and graph-conditioned fusion in place of generic channel mixing.</em></p>
+
+## Highlights
+
+- **Physics-Guided Dynamic Field Graph.** A stable relation registry provides
+  physically meaningful edges, while Top-K positive and negative residual
+  edges capture state-dependent couplings inside each spatial window.
+- **Graph-Conditioned Latent Fusion.** Graph context and source-node centrality
+  guide aggregation into four latent slots. A U-shaped backbone models shared
+  multiscale structure before bounded feedback returns information to the field
+  pathway.
+- **Relation-Aware Forecast Decoder.** Each of the 69 registered output fields
+  reads field and latent memories through relation-aware cross-attention.
+- **Stable autoregressive forecasting.** VeinCast learns one 6-hour transition
+  and uses a progressive `1 -> 2 -> 4` rollout curriculum with detached
+  predicted inputs.
+- **Paper-aligned objective.** Training uses only a masked,
+  latitude-weighted Huber loss in normalized space (`delta = 2`), without an
+  auxiliary reconstruction term or equation-based physical regularizer.
+
+## Architecture
+
+<p align="center">
+  <img src="assets/veincast_framework.jpg" width="100%" alt="Overall VeinCast architecture">
+</p>
+
+<p align="center"><em>Overall technical flow of VeinCast: field encoding, dynamic graph construction, graph-conditioned multiscale fusion, and relation-aware decoding.</em></p>
+
+The default implementation operates on a `121 x 240` latitude-longitude grid:
+
+| Component | Default setting |
+|---|---|
+| Forecast state | 69 fields, `121 x 240` |
+| Patch size | `4 x 4` |
+| Field encoder | widths `96/192`, depths `2/4`, heads `4/8` |
+| Earth window | `4 x 8` |
+| Dynamic graph | physical prior + Top-K `4` residual edges |
+| Fusion memory | 4 latent slots, width `384` |
+| Latent U-Backbone | depths `3/4/2`, heads `12/24/12` |
+| Base transition | 6 hours |
+| Training rollout | 1, 2, and 4 steps |
+
+For an exact paper-to-code mapping, see
+[PAPER_ALIGNMENT.md](PAPER_ALIGNMENT.md).
+
+## Forecast fields
+
+VeinCast uses a fixed registry of 69 ERA5 fields:
+
+- **65 upper-air fields:** geopotential (`z`), temperature (`t`), specific
+  humidity (`q`), zonal wind (`u`), and meridional wind (`v`) at 13 pressure
+  levels: `50, 100, 150, 200, 250, 300, 400, 500, 600, 700, 850, 925, 1000 hPa`.
+- **4 surface fields:** 2 m temperature (`t2m`), 10 m zonal wind (`u10`),
+  10 m meridional wind (`v10`), and mean sea-level pressure (`msl`).
+
+Both input and output follow this canonical order. The reported interface does
+not interpolate or predict unregistered pressure levels.
 
 ## Installation
 
 ```bash
+git clone https://github.com/Zhisheng-researcher/VeinCast.git
+cd VeinCast
+
+python -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip
 python -m pip install -r requirements.txt
 ```
 
-Edit the ERA5 and static-data paths in the configuration files before running.
-The dynamic NetCDF file must expose the variables and pressure levels defined in
-`variables.py`; the canonical registry order contains 69 fields. The optional
-surface-pressure field is used to exclude below-ground pressure levels from
-supervision.
+## Data preparation
 
-## Three-stage training
+Update `dynamic_path`, `static_path`, and `stats_path` in the selected file
+under `configs/`.
 
-Stage 1 learns one 6-hour transition:
+The dynamic NetCDF file must contain:
+
+- a `time` coordinate sampled every 6 hours;
+- latitude and longitude dimensions named `latitude`/`longitude` or `lat`/`lon`;
+- upper-air variables with a pressure dimension named `level`,
+  `pressure_level`, `isobaricInhPa`, or `plev`;
+- the variables and pressure levels listed above on the same `121 x 240` grid.
+
+The optional static file may provide `land_sea_mask` and `orography`. Five
+spherical geographic channels are generated internally. If surface pressure
+(`sp`) is available in the dynamic file, pressure levels below the local
+surface are excluded from supervision.
+
+Normalization statistics are fitted on the configured training period when
+`stats_path` does not yet exist, then stored for reuse. ERA5 data and pretrained
+checkpoints are not included in this repository.
+
+## Training
+
+VeinCast uses a three-stage autoregressive curriculum. Each new stage loads
+model weights from the previous best checkpoint while restarting the optimizer,
+scheduler, and gradient scaler.
+
+### Stage 1: one-step transition
 
 ```bash
 python train.py --config configs/veincast_stage1.json
 ```
 
-Stage 2 restarts optimization from the best Stage-1 weights and trains a
-two-step rollout:
+### Stage 2: two-step rollout
 
 ```bash
 python train.py \
@@ -48,8 +131,7 @@ python train.py \
   --init-from artifacts/veincast_stage1/best.pt
 ```
 
-Stage 3 restarts optimization from the best Stage-2 weights and trains a
-four-step rollout:
+### Stage 3: four-step rollout
 
 ```bash
 python train.py \
@@ -57,37 +139,85 @@ python train.py \
   --init-from artifacts/veincast_stage2_rollout2/best.pt
 ```
 
-For distributed training, launch the same commands with `torchrun`. Batch size
-in the configuration is per process. Rollout steps after the first use a full
-availability mask; Stages 2 and 3 use sample-wise teacher forcing with
-probability `0.25` and detached predicted inputs.
+For distributed training, launch the same entry point with `torchrun`; the
+configured batch size is per process. For example:
 
-## Evaluation and forecasting
+```bash
+torchrun --standalone --nproc_per_node=8 train.py \
+  --config configs/veincast_stage1.json
+```
 
-Evaluate all registered fields at the paper lead times:
+Stages 2 and 3 use sample-wise teacher forcing with probability `0.25` and
+detached rollout. From the second autoregressive step onward, the
+field-availability mask is set to one because each prediction contains all 69
+fields.
+
+## Evaluation
+
+Evaluate recursive forecasts through 14 days and retain the standard reporting
+lead times:
 
 ```bash
 python evaluate.py \
   --checkpoint artifacts/veincast_stage3_rollout4/best.pt \
-  --max-lead-hours 336
+  --max-lead-hours 336 \
+  --report-leads 24,72,120,168,240,336
 ```
 
-Create a recursive 24-hour forecast:
+Results are written to `artifacts/veincast_evaluation/metrics.json` and
+`metrics.csv`, with per-field RMSE and latitude-weighted ACC.
+
+## Inference
+
+Create a recursive 24-hour forecast for one sample:
 
 ```bash
 python predict.py \
   --checkpoint artifacts/veincast_stage3_rollout4/best.pt \
-  --lead-hours 24
+  --lead-hours 24 \
+  --sample-index 0
 ```
 
-The prediction archive stores `prediction` with shape
-`[forecast_steps, 69, 121, 240]`, together with canonical field labels,
-coordinates, and lead hours. VeinCast's reported interface does not interpolate
-or predict unregistered pressure levels.
+The generated NPZ archive contains:
 
-## Compatibility
+- `prediction`: physical-unit forecasts with shape
+  `[forecast_steps, 69, 121, 240]`;
+- `field_labels`: canonical registry labels;
+- `latitude`, `longitude`, and `lead_hours`;
+- `sample_index`.
 
-New code should import `VeinCast` from `veincast.py`. The small `model.py`
-wrapper and selected class aliases preserve imports used by early development
-scripts; module attribute names are unchanged so existing state dictionaries
-remain loadable.
+## Repository layout
+
+```text
+VeinCast/
+|-- assets/                  # Figures used by this README
+|-- configs/                 # Three-stage training configurations
+|-- data.py                  # ERA5 loading, masking, and normalization
+|-- dynamic_graph.py         # Physics-guided dynamic field graph
+|-- fusion.py                # Graph-conditioned latent fusion
+|-- layers.py                # Earth-aware attention and decoder layers
+|-- losses.py                # Latitude-weighted Huber objective
+|-- metrics.py               # RMSE and weighted ACC
+|-- veincast.py              # Main VeinCast model
+|-- train.py                 # Distributed staged training
+|-- evaluate.py              # Recursive benchmark evaluation
+|-- predict.py               # Closed-set 69-field inference
+`-- PAPER_ALIGNMENT.md       # Paper-to-code correspondence
+```
+
+## Checkpoint compatibility
+
+New code should import `VeinCast` from `veincast.py`. The lightweight
+`model.py` wrapper and selected class aliases preserve early development import
+paths. Internal module attribute names are unchanged, so existing VeinCast state
+dictionaries remain loadable.
+
+## Citation
+
+Citation information will be added when the paper is publicly available.
+
+## Acknowledgements
+
+This project uses ERA5 reanalysis data from the European Centre for
+Medium-Range Weather Forecasts (ECMWF). The figures above are reproduced from
+the VeinCast manuscript.
