@@ -1,0 +1,126 @@
+{
+  "data": {
+    "dynamic_path": "/mnt/data_cpfs/songjingwei/liyuxuan/weather/data/era5_69vars.nc",
+    "static_path": "/mnt/data_cpfs/songjingwei/liyuxuan/weather/data/era5_static.nc",
+    "train_start": "1979-01-01",
+    "train_end": "2017-12-31",
+    "valid_start": "2018-01-01",
+    "valid_end": "2018-12-31",
+    "test_start": "2020-01-01",
+    "test_end": "2020-12-31",
+    "rollout_steps": 1,
+    "input_dropout_probability": 0.15,
+    "load_into_memory": false,
+    "stats_path": "artifacts/normalization_era5_69vars_1979_2017.json"
+  },
+  "model": {
+    "image_size": [
+      121,
+      240
+    ],
+    "patch_size": [
+      4,
+      4
+    ],
+    "embed_dim": 96,
+    "depths": [
+      2,
+      4
+    ],
+    "num_heads": [
+      4,
+      8
+    ],
+    "window_size": [
+      4,
+      8
+    ],
+    "mlp_ratio": 4.0,
+    "dropout": 0.0,
+    "drop_path": 0.02,
+    "graph_topk_residual": 4,
+    "graph_prior_strength": 1.0,
+    "pressure_fourier_bands": 8,
+    "static_channels": 7,
+    "surface_stem_depth": 1,
+    "atmosphere_stem_depth": 1,
+    "fusion_latents": 4,
+    "fusion_dim": 384,
+    "fusion_depths": [
+      3,
+      4,
+      2
+    ],
+    "fusion_heads": [
+      12,
+      24,
+      12
+    ],
+    "fusion_window_size": [
+      4,
+      8
+    ],
+    "fusion_drop_path": 0.02,
+    "fusion_feedback_gate_bias": -3.0,
+    "fusion_feedback_gate_min": 0.0,
+    "fusion_feedback_gate_max": 0.25,
+    "query_fusion_gate_bias": -2.0,
+    "query_fusion_gate_min": 0.0,
+    "query_fusion_gate_max": 0.5,
+    "fusion_centrality_floor": 0.0001,
+    "bounded_recovery_affine": true,
+    "recovery_affine_scale_radius": 0.25,
+    "recovery_affine_bias_radius": 0.25,
+    "recovery_output_soft_clamp": 8.0,
+    "recovery_zero_init": false,
+    "recovery_init_std": 0.001,
+    "residual_prediction": true,
+    "prediction_residual_scale": 0.25,
+    "prediction_output_soft_clamp": 12.0,
+    "use_calendar_embedding": true,
+    "calendar_fourier_bands": 8,
+    "geo_fourier_bands": 8
+  },
+  "loss": {
+    "forecast_weight": 1.0,
+    "forecast_loss": "huber",
+    "huber_delta": 2.0
+  },
+  "training": {
+    "output_dir": "artifacts/veincast_stage1",
+    "batch_size": 6,
+    "num_workers": 8,
+    "epochs": 150,
+    "learning_rate": 0.0001,
+    "weight_decay": 0.001,
+    "warmup_epochs": 2,
+    "gradient_clip": 1.0,
+    "amp": true,
+    "amp_dtype": "bfloat16",
+    "activation_checkpointing": true,
+    "checkpoint_preserve_rng_state": true,
+    "gradient_accumulation_steps": 1,
+    "sensitive_lr_multiplier": 0.25,
+    "skip_update_grad_norm": 5.0,
+    "float32_matmul_precision": "high",
+    "pin_memory": true,
+    "persistent_workers": false,
+    "prefetch_factor": 2,
+    "ddp_broadcast_buffers": false,
+    "ddp_gradient_as_bucket_view": true,
+    "ddp_static_graph": false,
+    "ddp_bucket_cap_mb": 25,
+    "teacher_forcing_probability": 0.0,
+    "detach_rollout": true,
+    "loss_spike_threshold": 10.0,
+    "abort_on_loss_spike": true,
+    "diagnostic_all_ranks_on_spike": true,
+    "diagnostic_log_interval": 200,
+    "diagnostic_top_k": 10,
+    "gradient_log_interval": 200,
+    "gradient_log_loss_fraction": 0.25,
+    "empty_cache_each_epoch": true,
+    "patience": 150,
+    "seed": 42
+  }
+}
